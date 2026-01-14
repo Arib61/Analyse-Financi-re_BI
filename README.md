@@ -134,36 +134,3 @@ Analyse de corrélation
 
 Analyse exploratoire prédictive
 
-🖼️ Visualisations
-KPI financiers
-
-Graphiques CA vs Charges
-
-Cartes géographiques
-
-Classement des équipes
-
-Clusters stratégiques
-
-Captures disponibles dans powerbi/screens/
-
-📁 Structure du Projet
-kotlin
-Copier le code
-Analyse-Financiere_BI/
-├── data/
-├── powerbi/
-├── docs/
-├── tests/
-├── scripts/
-├── assets/
-├── requirements.txt
-├── .gitignore
-└── README.md
-🧪 Tests et Validation
-Tests d’intégrité des données
-
-
-
-
-
