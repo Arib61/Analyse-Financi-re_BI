@@ -1,0 +1,433 @@
+===============================================================
+MESURES DAX COMPLÈTES - PROJET ESPORT BUSINESS INTELLIGENCE
+===============================================================
+
+// ============ MESURES DE BASE - TABLE FINANCES ============
+
+// 1. Chiffre d'Affaires Total
+CA Total = 
+SUM(Finances[CA])
+
+// 2. Charges Total
+Charges Total = 
+SUM(Finances[Charges])
+
+// 3. Résultat Net Total
+Résultat Total = 
+[CA Total] - [Charges Total]
+
+// 4. Marge Moyenne (en pourcentage)
+Marge Moyenne = 
+AVERAGE(Finances[Marge brute])
+
+// 5. Croissance Moyenne du CA
+Croissance Moyenne = 
+AVERAGE(Finances[Croissance CA %])
+
+// 6. CA Médian
+CA Médian = 
+MEDIAN(Finances[CA])
+
+// 7. Charges Médianes
+Charges Médianes = 
+MEDIAN(Finances[Charges])
+
+// 8. Marge Médiane
+Marge Médiane = 
+MEDIAN(Finances[Marge brute])
+
+// ============ MESURES CONDITIONNELLES ============
+
+// 9. Nombre d'Équipes Rentables
+Équipes Rentables = 
+CALCULATE(
+    COUNTROWS(Finances),
+    Finances[Rentabilité] = "Oui"
+)
+
+// 10. Nombre d'Équipes Non Rentables
+Équipes Non Rentables = 
+CALCULATE(
+    COUNTROWS(Finances),
+    Finances[Rentabilité] = "Non"
+)
+
+// 11. Taux de Rentabilité Global
+Taux Rentabilité = 
+DIVIDE(
+    [Équipes Rentables],
+    COUNTROWS(Finances),
+    0
+)
+
+// 12. Équipes avec Croissance Positive
+Équipes Croissance Positive = 
+CALCULATE(
+    COUNTROWS(Finances),
+    Finances[Croissance CA %] > 0
+)
+
+// 13. Équipes avec Croissance > 20%
+Équipes Forte Croissance = 
+CALCULATE(
+    COUNTROWS(Finances),
+    Finances[Croissance CA %] > 0.20
+)
+
+// ============ MESURES DE PERFORMANCE ============
+
+// 14. CA Moyen par Équipe
+CA Moyen = 
+DIVIDE(
+    [CA Total],
+    COUNTROWS(Finances),
+    0
+)
+
+// 15. Charges Moyennes par Équipe
+Charges Moyennes = 
+DIVIDE(
+    [Charges Total],
+    COUNTROWS(Finances),
+    0
+)
+
+// 16. Résultat Moyen par Équipe
+Résultat Moyen = 
+DIVIDE(
+    [Résultat Total],
+    COUNTROWS(Finances),
+    0
+)
+
+// 17. Ratio Charges/CA
+Ratio Charges CA = 
+DIVIDE(
+    [Charges Total],
+    [CA Total],
+    0
+)
+
+// ============ MESURES TEMPORELLES ============
+
+// 18. CA par Ancienneté (CA moyen par année d'existence)
+CA par Ancienneté = 
+AVERAGEX(
+    Equipes,
+    DIVIDE(
+        RELATED(Finances[CA]),
+        Equipes[Ancienneté],
+        0
+    )
+)
+
+// 19. Ancienneté Moyenne des Équipes
+Ancienneté Moyenne = 
+AVERAGE(Equipes[Ancienneté])
+
+// ============ MESURES DE SEGMENTATION (CLUSTERS) ============
+
+// 20. CA Cluster 1 (Champions)
+CA Cluster 1 = 
+CALCULATE(
+    [CA Total],
+    Finances[Cluster] = "1"
+)
+
+// 21. CA Cluster 2 (Croissants)
+CA Cluster 2 = 
+CALCULATE(
+    [CA Total],
+    Finances[Cluster] = "2"
+)
+
+// 22. CA Cluster 3 (Stables)
+CA Cluster 3 = 
+CALCULATE(
+    [CA Total],
+    Finances[Cluster] = "3"
+)
+
+// 23. CA Cluster 4 (Transformables)
+CA Cluster 4 = 
+CALCULATE(
+    [CA Total],
+    Finances[Cluster] = "4"
+)
+
+// 24. CA Cluster 5 (Risqués)
+CA Cluster 5 = 
+CALCULATE(
+    [CA Total],
+    Finances[Cluster] = "5"
+)
+
+// 25. Pourcentage du CA par Cluster
+Pourcentage Cluster 1 = 
+DIVIDE(
+    [CA Cluster 1],
+    [CA Total],
+    0
+)
+
+Pourcentage Cluster 2 = 
+DIVIDE(
+    [CA Cluster 2],
+    [CA Total],
+    0
+)
+
+Pourcentage Cluster 3 = 
+DIVIDE(
+    [CA Cluster 3],
+    [CA Total],
+    0
+)
+
+Pourcentage Cluster 4 = 
+DIVIDE(
+    [CA Cluster 4],
+    [CA Total],
+    0
+)
+
+Pourcentage Cluster 5 = 
+DIVIDE(
+    [CA Cluster 5],
+    [CA Total],
+    0
+)
+
+// 26. Nombre d'Équipes par Cluster
+Équipes Cluster 1 = 
+CALCULATE(
+    COUNTROWS(Finances),
+    Finances[Cluster] = "1"
+)
+
+Équipes Cluster 2 = 
+CALCULATE(
+    COUNTROWS(Finances),
+    Finances[Cluster] = "2"
+)
+
+Équipes Cluster 3 = 
+CALCULATE(
+    COUNTROWS(Finances),
+    Finances[Cluster] = "3"
+)
+
+Équipes Cluster 4 = 
+CALCULATE(
+    COUNTROWS(Finances),
+    Finances[Cluster] = "4"
+)
+
+Équipes Cluster 5 = 
+CALCULATE(
+    COUNTROWS(Finances),
+    Finances[Cluster] = "5"
+)
+
+// ============ MESURES TOP 10 ============
+
+// 27. Top 10 Équipes par CA
+Top10 CA = 
+TOPN(
+    10,
+    ADDCOLUMNS(
+        VALUES(Equipes[Nom]),
+        "CA", CALCULATE(SUM(Finances[CA])),
+        "Marge", CALCULATE(AVERAGE(Finances[Marge brute])),
+        "Croissance", CALCULATE(AVERAGE(Finances[Croissance CA %])),
+        "Rentabilité", CALCULATE(MAX(Finances[Rentabilité]))
+    ),
+    [CA]
+)
+
+// 28. Top 10 Équipes par Marge
+Top10 Marge = 
+TOPN(
+    10,
+    ADDCOLUMNS(
+        VALUES(Equipes[Nom]),
+        "CA", CALCULATE(SUM(Finances[CA])),
+        "Marge", CALCULATE(AVERAGE(Finances[Marge brute])),
+        "Croissance", CALCULATE(AVERAGE(Finances[Croissance CA %]))
+    ),
+    [Marge]
+)
+
+// 29. Top 10 Équipes par Croissance
+Top10 Croissance = 
+TOPN(
+    10,
+    ADDCOLUMNS(
+        VALUES(Equipes[Nom]),
+        "CA", CALCULATE(SUM(Finances[CA])),
+        "Marge", CALCULATE(AVERAGE(Finances[Marge brute])),
+        "Croissance", CALCULATE(AVERAGE(Finances[Croissance CA %]))
+    ),
+    [Croissance]
+)
+
+// ============ MESURES PAR JEU ============
+
+// 30. CA par Jeu
+CA par Jeu = 
+SUMMARIZE(
+    Equipes,
+    Equipes[Jeu],
+    "CA", SUM(Finances[CA]),
+    "Nombre Équipes", COUNTROWS(Equipes),
+    "CA Moyen", AVERAGE(Finances[CA])
+)
+
+// 31. Marge par Jeu
+Marge par Jeu = 
+SUMMARIZE(
+    Equipes,
+    Equipes[Jeu],
+    "Marge Moyenne", AVERAGE(Finances[Marge brute]),
+    "Croissance Moyenne", AVERAGE(Finances[Croissance CA %])
+)
+
+// ============ MESURES GÉOGRAPHIQUES ============
+
+// 32. CA par Pays
+CA par Pays = 
+SUMMARIZE(
+    Equipes,
+    Equipes[Pays],
+    "CA Total", SUM(Finances[CA]),
+    "Nombre Équipes", COUNTROWS(Equipes),
+    "CA Moyen", AVERAGE(Finances[CA])
+)
+
+// 33. Marge par Pays
+Marge par Pays = 
+SUMMARIZE(
+    Equipes,
+    Equipes[Pays],
+    "Marge Moyenne", AVERAGE(Finances[Marge brute]),
+    "Rentabilité", 
+        DIVIDE(
+            CALCULATE(COUNTROWS(Equipes), Finances[Rentabilité] = "Oui"),
+            COUNTROWS(Equipes),
+            0
+        )
+)
+
+// ============ MESURES D'ANALYSE AVANCÉE ============
+
+// 34. Équipes avec Ratio CA/Charges Optimal (entre 1.5 et 2.5)
+Équipes Ratio Optimal = 
+CALCULATE(
+    COUNTROWS(Finances),
+    Finances[Ratio_CA_Charges] >= 1.5 && Finances[Ratio_CA_Charges] <= 2.5
+)
+
+// 35. CA des Équipes avec Marge > 20%
+CA Marge Élevée = 
+CALCULATE(
+    [CA Total],
+    Finances[Marge brute] > 0.20
+)
+
+// 36. CA des Équipes en Croissance > 30%
+CA Forte Croissance = 
+CALCULATE(
+    [CA Total],
+    Finances[Croissance CA %] > 0.30
+)
+
+// ============ MESURES POUR DASHBOARD ============
+
+// 37. Indicateur Composite de Performance
+Score Performance = 
+AVERAGEX(
+    Equipes,
+    VAR caScore = DIVIDE(RELATED(Finances[CA]), [CA Médian])
+    VAR margeScore = RELATED(Finances[Marge brute]) * 100
+    VAR croissanceScore = RELATED(Finances[Croissance CA %]) * 100
+    RETURN
+        (caScore * 0.4) + (margeScore * 0.3) + (croissanceScore * 0.3)
+)
+
+// 38. Catégorie de Performance
+Catégorie Performance = 
+SWITCH(
+    TRUE(),
+    [Score Performance] >= 80, "Excellente",
+    [Score Performance] >= 60, "Bonne",
+    [Score Performance] >= 40, "Moyenne",
+    "À améliorer"
+)
+
+// 39. Tendance Rentabilité
+Tendance Rentabilité = 
+VAR rentabilitéActuelle = [Taux Rentabilité]
+VAR équipesRentablesHier = CALCULATE([Équipes Rentables], DATEADD(TODAY(), -1, DAY))
+VAR équipesTotalHier = CALCULATE(COUNTROWS(Finances), DATEADD(TODAY(), -1, DAY))
+VAR rentabilitéHier = DIVIDE(équipesRentablesHier, équipesTotalHier, 0)
+RETURN
+    rentabilitéActuelle - rentabilitéHier
+
+// 40. Recommandation d'Investissement
+Recommandation Investissement = 
+SWITCH(
+    TRUE(),
+    [Cluster] = "1" && [Marge brute] > 0.25, "Investissement Prioritaire",
+    [Cluster] = "2" && [Croissance CA %] > 0.30, "Opportunité Croissance",
+    [Cluster] = "3" && [Marge brute] > 0.15, "Surveillance",
+    [Cluster] = "4" && [Ratio_CA_Charges] > 1.2, "Restructuration Possible",
+    "À éviter"
+)
+
+// ============ MESURES DE CALCUL INTERMÉDIAIRE ============
+
+// 41. Total Équipes (utilisé dans plusieurs calculs)
+Total Équipes = 
+COUNTROWS(Finances)
+
+// 42. CA Maximum
+CA Maximum = 
+MAX(Finances[CA])
+
+// 43. CA Minimum
+CA Minimum = 
+MIN(Finances[CA])
+
+// 44. Plage de CA
+Plage CA = 
+[CA Maximum] - [CA Minimum]
+
+// 45. Écart-type du CA
+Ecart Type CA = 
+STDEV.P(Finances[CA])
+
+// ============ MESURES FORMATÉES POUR AFFICHAGE ============
+
+// 46. CA Total Formaté
+CA Total Formaté = 
+FORMAT([CA Total], "#,##0 €")
+
+// 47. Taux Rentabilité Formaté
+Taux Rentabilité Formaté = 
+FORMAT([Taux Rentabilité], "0.0%")
+
+// 48. Croissance Moyenne Formatée
+Croissance Moyenne Formatée = 
+FORMAT([Croissance Moyenne], "+0.0%;-0.0%")
+
+// 49. Marge Moyenne Formatée
+Marge Moyenne Formatée = 
+FORMAT([Marge Moyenne], "0.0%")
+
+// 50. Résultat Total Formaté
+Résultat Total Formaté = 
+FORMAT([Résultat Total], "+#,##0 €;-#,##0 €")
+
+===============================================================
+TOTAL : 50 MESURES DAX DÉVELOPPÉES
+===============================================================

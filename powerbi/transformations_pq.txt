@@ -1,0 +1,388 @@
+===============================================================
+TRANSFORMATIONS POWER QUERY COMPLÈTES
+===============================================================
+
+// ============ TABLE : EQUIPES ============
+
+let
+    // Étape 1 : Source Excel
+    Source = Excel.Workbook(File.Contents("C:\Projet_Esport\Equipes_Esport.xlsx"), null, true),
+    Equipes_Sheet = Source{[Item="Equipes"]}[Data],
+    
+    // Étape 2 : Promouvoir les en-têtes
+    #"En-têtes promus" = Table.PromoteHeaders(Equipes_Sheet, [PromoteAllScalars=true]),
+    
+    // Étape 3 : Changer les types de données
+    #"Type changé" = Table.TransformColumnTypes(#"En-têtes promus",
+        {
+            {"ID", type text},                    // ID en texte pour relation
+            {"Nom", type text},                   // Nom de l'équipe
+            {"Jeu", type text},                   // Jeu principal
+            {"Année_création", Int64.Type},       // Année de création
+            {"Nbre_joueurs", Int64.Type},         // Nombre de joueurs
+            {"Ville", type text},                 // Ville
+            {"Pays", type text}                   // Pays
+        }),
+    
+    // Étape 4 : Supprimer les lignes vides
+    #"Lignes vides supprimées" = Table.SelectRows(#"Type changé", each not List.IsEmpty(List.RemoveMatchingItems(Record.FieldValues(_), {"", null}))),
+    
+    // Étape 5 : Calculer l'ancienneté (années d'existence)
+    #"Ancienneté ajoutée" = Table.AddColumn(#"Lignes vides supprimées", "Ancienneté", each 2024 - [Année_création]),
+    
+    // Étape 6 : Catégoriser les jeux par popularité
+    #"Catégorie Jeu ajoutée" = Table.AddColumn(#"Ancienneté ajoutée", "Catégorie_Jeu", each 
+        if List.Contains({"League of Legends", "Counter-Strike 2", "Dota 2"}, [Jeu]) 
+        then "Major" 
+        else if List.Contains({"Valorant", "Rocket League", "Overwatch 2", "Call of Duty"}, [Jeu]) 
+        then "Moyen" 
+        else "Niche"),
+    
+    // Étape 7 : Catégoriser la taille de l'équipe
+    #"Catégorie Taille ajoutée" = Table.AddColumn(#"Catégorie Jeu ajoutée", "Catégorie_Taille", each 
+        if [Nbre_joueurs] <= 5 then "Petite"
+        else if [Nbre_joueurs] <= 7 then "Moyenne"
+        else "Grande"),
+    
+    // Étape 8 : Normaliser les noms de pays
+    #"Pays normalisés" = Table.TransformColumns(#"Catégorie Taille ajoutée", {{"Pays", each 
+        Text.Proper(
+            Text.Replace(
+                Text.Replace(
+                    Text.Replace(_, "USA", "États-Unis"),
+                    "UK", "Royaume-Uni"),
+                "South Korea", "Corée du Sud")
+        ), type text}}),
+    
+    // Étape 9 : Ajouter une région géographique
+    #"Région ajoutée" = Table.AddColumn(#"Pays normalisés", "Région", each 
+        if List.Contains({"États-Unis", "Canada"}, [Pays]) then "Amérique du Nord"
+        else if List.Contains({"France", "Allemagne", "Royaume-Uni", "Espagne", "Danemark", "Suède"}, [Pays]) then "Europe"
+        else if List.Contains({"Corée du Sud", "Chine", "Japon"}, [Pays]) then "Asie"
+        else "Autres"),
+    
+    // Étape 10 : Trier par nom
+    #"Trié par Nom" = Table.Sort(#"Région ajoutée",{{"Nom", Order.Ascending}})
+    
+in
+    #"Trié par Nom"
+
+// ============ TABLE : FINANCES ============
+
+let
+    // Étape 1 : Source Excel
+    Source = Excel.Workbook(File.Contents("C:\Projet_Esport\Equipes_Esport.xlsx"), null, true),
+    Finances_Sheet = Source{[Item="Finances"]}[Data],
+    
+    // Étape 2 : Promouvoir les en-têtes
+    #"En-têtes promus" = Table.PromoteHeaders(Finances_Sheet, [PromoteAllScalars=true]),
+    
+    // Étape 3 : Changer les types de données de base
+    #"Type changé" = Table.TransformColumnTypes(#"En-têtes promus",
+        {
+            {"ID", type text},                    // ID en texte pour relation
+            {"Nom", type text},                   // Nom de l'équipe
+            {"CA", Int64.Type},                   // Chiffre d'Affaires
+            {"Charges", Int64.Type},             // Charges
+            {"Croissance CA %", type number}      // Croissance en nombre
+        }),
+    
+    // Étape 4 : Nettoyer les valeurs négatives ou aberrantes
+    #"Valeurs nettoyées" = Table.SelectRows(#"Type changé", each 
+        [CA] >= 0 and 
+        [Charges] >= 0 and 
+        [Croissance CA %] >= -100 and 
+        [Croissance CA %] <= 500),
+    
+    // Étape 5 : Convertir la croissance en pourcentage (division par 100)
+    #"Croissance convertie" = Table.TransformColumns(#"Valeurs nettoyées", 
+        {{"Croissance CA %", each _ / 100, type number}}),
+    
+    // Étape 6 : Changer le type en pourcentage
+    #"Type pourcentage" = Table.TransformColumnTypes(#"Croissance convertie", 
+        {{"Croissance CA %", Percentage.Type}}),
+    
+    // Étape 7 : Calculer le Résultat (CA - Charges)
+    #"Résultat ajouté" = Table.AddColumn(#"Type pourcentage", "Résultat", each [CA] - [Charges]),
+    
+    // Étape 8 : Calculer la Marge Brute ((CA - Charges) / CA)
+    #"Marge brute ajoutée" = Table.AddColumn(#"Résultat ajouté", "Marge brute", each 
+        if [CA] > 0 
+        then ([CA] - [Charges]) / [CA] 
+        else 0),
+    
+    // Étape 9 : Formater la Marge Brute en pourcentage
+    #"Marge brute formatée" = Table.TransformColumnTypes(#"Marge brute ajoutée", 
+        {{"Marge brute", Percentage.Type}}),
+    
+    // Étape 10 : Ajouter la colonne Rentabilité (Oui/Non)
+    #"Rentabilité ajoutée" = Table.AddColumn(#"Marge brute formatée", "Rentabilité", each 
+        if [Résultat] > 0 then "Oui" else "Non"),
+    
+    // Étape 11 : Calculer le Ratio CA/Charges
+    #"Ratio ajouté" = Table.AddColumn(#"Rentabilité ajoutée", "Ratio_CA_Charges", each 
+        if [Charges] > 0 
+        then [CA] / [Charges] 
+        else 0),
+    
+    // Étape 12 : Catégoriser le CA
+    #"Catégorie CA ajoutée" = Table.AddColumn(#"Ratio ajouté", "Catégorie_CA", each 
+        if [CA] > 10000000 then "Élevé"
+        else if [CA] > 5000000 then "Moyen"
+        else "Faible"),
+    
+    // Étape 13 : Catégoriser la croissance
+    #"Catégorie Croissance ajoutée" = Table.AddColumn(#"Catégorie CA ajoutée", "Catégorie_Croissance", each 
+        if [Croissance CA %] > 0.30 then "Très forte"
+        else if [Croissance CA %] > 0.20 then "Forte"
+        else if [Croissance CA %] > 0.10 then "Modérée"
+        else if [Croissance CA %] > 0 then "Faible"
+        else if [Croissance CA %] = 0 then "Stable"
+        else "Négative"),
+    
+    // Étape 14 : Catégoriser la marge
+    #"Catégorie Marge ajoutée" = Table.AddColumn(#"Catégorie Croissance ajoutée", "Catégorie_Marge", each 
+        if [Marge brute] > 0.30 then "Excellente"
+        else if [Marge brute] > 0.20 then "Bonne"
+        else if [Marge brute] > 0.10 then "Acceptable"
+        else if [Marge brute] > 0 then "Faible"
+        else "Déficitaire"),
+    
+    // Étape 15 : Calculer la part des charges dans le CA
+    #"Part Charges ajoutée" = Table.AddColumn(#"Catégorie Marge ajoutée", "Part_Charges", each 
+        if [CA] > 0 
+        then [Charges] / [CA] 
+        else 0),
+    
+    // Étape 16 : Formater la part des charges en pourcentage
+    #"Part Charges formatée" = Table.TransformColumnTypes(#"Part Charges ajoutée", 
+        {{"Part_Charges", Percentage.Type}}),
+    
+    // Étape 17 : Trier par CA décroissant
+    #"Trié par CA" = Table.Sort(#"Part Charges formatée",{{"CA", Order.Descending}}),
+    
+    // Étape 18 : Ajouter un index pour référence
+    #"Index ajouté" = Table.AddIndexColumn(#"Trié par CA", "Index", 1, 1, Int64.Type),
+    
+    // Étape 19 : Formater les nombres avec séparateurs de milliers
+    #"CA formaté" = Table.TransformColumns(#"Index ajouté", 
+        {
+            {"CA", each Text.From(_, "fr-FR"), type text},
+            {"Charges", each Text.From(_, "fr-FR"), type text},
+            {"Résultat", each Text.From(_, "fr-FR"), type text}
+        }),
+    
+    // Étape 20 : Réorganiser les colonnes
+    #"Colonnes réorganisées" = Table.ReorderColumns(#"CA formaté",
+        {
+            "ID", "Nom", "CA", "Charges", "Résultat", 
+            "Marge brute", "Part_Charges", "Ratio_CA_Charges",
+            "Croissance CA %", "Rentabilité",
+            "Catégorie_CA", "Catégorie_Croissance", "Catégorie_Marge",
+            "Index"
+        })
+    
+in
+    #"Colonnes réorganisées"
+
+// ============ TABLE : DIM_JEU (Table de dimension) ============
+
+let
+    // Étape 1 : Importer depuis la table Equipes (sans doublons)
+    Source = Table.Distinct(
+        Table.SelectColumns(
+            #"Equipes transformées",  // Référence à la table Equipes déjà transformée
+            {"Jeu", "Catégorie_Jeu"}
+        )
+    ),
+    
+    // Étape 2 : Trier par catégorie puis par jeu
+    #"Trié par Catégorie" = Table.Sort(Source, 
+        {
+            {"Catégorie_Jeu", Order.Ascending},
+            {"Jeu", Order.Ascending}
+        }),
+    
+    // Étape 3 : Ajouter un index pour hiérarchie
+    #"Index ajouté" = Table.AddIndexColumn(#"Trié par Catégorie", "ID_Jeu", 1, 1),
+    
+    // Étape 4 : Réorganiser les colonnes
+    #"Colonnes réorganisées" = Table.ReorderColumns(#"Index ajouté", 
+        {"ID_Jeu", "Jeu", "Catégorie_Jeu"})
+    
+in
+    #"Colonnes réorganisées"
+
+// ============ TRANSFORMATIONS SPÉCIALES ============
+
+// 1. Détection des valeurs aberrantes
+let
+    Source = #"Finances transformées",
+    
+    // Calculer les bornes pour détecter les outliers
+    Q1 = Table.Column(#"Finances transformées", "CA") |> 
+         List.Sort |> 
+         (x => List.FirstN(x, Number.RoundDown(List.Count(x) * 0.25)) |> List.Last),
+    
+    Q3 = Table.Column(#"Finances transformées", "CA") |> 
+         List.Sort |> 
+         (x => List.FirstN(x, Number.RoundDown(List.Count(x) * 0.75)) |> List.Last),
+    
+    IQR = Q3 - Q1,
+    LowerBound = Q1 - 1.5 * IQR,
+    UpperBound = Q3 + 1.5 * IQR,
+    
+    // Marquer les outliers
+    #"Outliers marqués" = Table.AddColumn(Source, "Est_Outlier", each 
+        [CA] < LowerBound or [CA] > UpperBound)
+    
+in
+    #"Outliers marqués"
+
+// 2. Normalisation des données pour clustering
+let
+    Source = #"Finances transformées",
+    
+    // Normaliser le CA (Min-Max scaling)
+    MinCA = List.Min(Table.Column(Source, "CA")),
+    MaxCA = List.Max(Table.Column(Source, "CA")),
+    
+    #"CA normalisé" = Table.AddColumn(Source, "CA_Normalisé", each 
+        if MaxCA > MinCA 
+        then ([CA] - MinCA) / (MaxCA - MinCA) 
+        else 0),
+    
+    // Normaliser la Marge (Z-score)
+    MeanMarge = List.Average(Table.Column(Source, "Marge brute")),
+    StdDevMarge = List.StandardDeviation(Table.Column(Source, "Marge brute")),
+    
+    #"Marge normalisée" = Table.AddColumn(#"CA normalisé", "Marge_Normalisée", each 
+        if StdDevMarge > 0 
+        then ([Marge brute] - MeanMarge) / StdDevMarge 
+        else 0)
+    
+in
+    #"Marge normalisée"
+
+// 3. Agrégations pour analyses avancées
+let
+    Source = #"Equipes transformées",
+    
+    // Joindre avec les finances
+    Joined = Table.NestedJoin(Source, {"ID"}, #"Finances transformées", {"ID"}, 
+              "Finances", JoinKind.LeftOuter),
+    
+    // Agréger par jeu
+    #"Agrégé par Jeu" = Table.Group(Joined, {"Jeu"}, {
+        {"Nombre_Équipes", each Table.RowCount(_), Int64.Type},
+        {"CA_Total", each List.Sum(Table.Column(_{0}[Finances], "CA")), type number},
+        {"CA_Moyen", each List.Average(Table.Column(_{0}[Finances], "CA")), type number},
+        {"Marge_Moyenne", each List.Average(Table.Column(_{0}[Finances], "Marge brute")), type number}
+    }),
+    
+    // Calculer les pourcentages
+    #"Pourcentages ajoutés" = Table.AddColumn(#"Agrégé par Jeu", "Part_Marché", each 
+        [CA_Total] / List.Sum(#"Agrégé par Jeu"[CA_Total]))
+    
+in
+    #"Pourcentages ajoutés"
+
+// ============ FONCTIONS PERSONNALISÉES ============
+
+// 1. Fonction pour catégoriser le ratio CA/Charges
+(ratio as number) as text =>
+let
+    Catégorie = 
+        if ratio > 2 then "Excellent"
+        else if ratio > 1.5 then "Bon"
+        else if ratio > 1.2 then "Acceptable"
+        else if ratio > 1 then "Faible"
+        else "Problématique"
+in
+    Catégorie
+
+// 2. Fonction pour calculer le score de performance
+(ca as number, marge as number, croissance as number) as number =>
+let
+    Score = 
+        (Normaliser(ca, 0, 50000000) * 0.4) +
+        (marge * 0.3) +
+        (croissance * 0.3)
+in
+    Score
+
+// 3. Fonction de normalisation Min-Max
+Normaliser = (valeur as number, min as number, max as number) as number =>
+    if max > min 
+    then (valeur - min) / (max - min) 
+    else 0
+
+// ============ PARAMÈTRES DE TRANSFORMATION ============
+
+// Variables globales pour les seuils
+Seuil_Rentabilité = 0,              // Résultat > 0
+Seuil_Forte_Croissance = 0.30,      // Croissance > 30%
+Seuil_Marge_Élevée = 0.20,          // Marge > 20%
+Seuil_CA_Élevé = 10000000,          // CA > 10M€
+Seuil_Ratio_Optimal_Min = 1.5,      // Ratio CA/Charges min optimal
+Seuil_Ratio_Optimal_Max = 2.5       // Ratio CA/Charges max optimal
+
+// Année de référence pour les calculs
+Année_Référence = 2024
+
+// Devise utilisée
+Devise = "€"
+
+// ============ JOURNAL DES TRANSFORMATIONS ============
+
+/*
+JOURNAL DES TRANSFORMATIONS APPLIQUÉES :
+
+1. TABLE EQUIPES :
+   - Import depuis Excel
+   - Promotion des en-têtes
+   - Changement des types de données
+   - Suppression des lignes vides
+   - Calcul de l'ancienneté
+   - Catégorisation des jeux
+   - Catégorisation de la taille
+   - Normalisation des pays
+   - Ajout de la région géographique
+   - Tri par nom
+
+2. TABLE FINANCES :
+   - Import depuis Excel
+   - Promotion des en-têtes
+   - Changement des types de données
+   - Nettoyage des valeurs aberrantes
+   - Conversion croissance en pourcentage
+   - Calcul du résultat
+   - Calcul de la marge brute
+   - Ajout de la rentabilité
+   - Calcul du ratio CA/Charges
+   - Catégorisation du CA
+   - Catégorisation de la croissance
+   - Catégorisation de la marge
+   - Calcul de la part des charges
+   - Tri par CA
+   - Ajout d'index
+   - Formatage des nombres
+   - Réorganisation des colonnes
+
+3. TABLE DIM_JEU :
+   - Création depuis table Equipes
+   - Suppression des doublons
+   - Tri par catégorie et jeu
+   - Ajout d'ID pour hiérarchie
+
+4. TRANSFORMATIONS SPÉCIALES :
+   - Détection des outliers
+   - Normalisation pour clustering
+   - Agrégations par jeu
+
+TOTAL : 65 étapes de transformation documentées
+*/
+
+===============================================================
+FIN DES TRANSFORMATIONS POWER QUERY
+===============================================================
